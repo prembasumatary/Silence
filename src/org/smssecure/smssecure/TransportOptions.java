@@ -168,7 +168,7 @@ public class TransportOptions {
                                                                         @NonNull CharacterCalculator characterCalculator)
   {
     List<TransportOption>        results             = new LinkedList<>();
-    SubscriptionManagerCompat    subscriptionManager = new SubscriptionManagerCompat(context);
+    SubscriptionManagerCompat    subscriptionManager = SubscriptionManagerCompat.from(context);
     List<SubscriptionInfoCompat> subscriptions       = subscriptionManager.getActiveSubscriptionInfoList();
 
     if (subscriptions.size() < 2) {

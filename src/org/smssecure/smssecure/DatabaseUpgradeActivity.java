@@ -161,7 +161,7 @@ public class DatabaseUpgradeActivity extends BaseActivity {
            */
           int defaultSubscriptionId = activeSubscriptions.get(0).getSubscriptionId();
 
-          List<SubscriptionInfoCompat> activeSubscriptionsCompat = new SubscriptionManagerCompat(context).getActiveSubscriptionInfoList();
+          List<SubscriptionInfoCompat> activeSubscriptionsCompat = SubscriptionManagerCompat.from(context).getActiveSubscriptionInfoList();
 
           DualSimUpgradeUtil.moveIdentityKeysAndSessionsToSubscriptionId(context, -1, defaultSubscriptionId);
           DualSimUpgradeUtil.generateKeysIfDoNotExist(context, masterSecret, activeSubscriptionsCompat);

@@ -69,7 +69,7 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
   @Override
   protected void onCreate(Bundle icicle, @NonNull MasterSecret masterSecret) {
     this.masterSecret = masterSecret;
-    this.activeSubscriptions = new SubscriptionManagerCompat(this).getActiveSubscriptionInfoList();
+    this.activeSubscriptions = SubscriptionManagerCompat.from(this).getActiveSubscriptionInfoList();
 
     getSupportActionBar().setDisplayOptions(ActionBar.DISPLAY_SHOW_HOME | ActionBar.DISPLAY_SHOW_TITLE);
     getSupportActionBar().setTitle(R.string.app_name);

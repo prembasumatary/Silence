@@ -74,7 +74,7 @@ public class PassphraseCreateActivity extends PassphraseActivity {
       MasterSecretUtil.generateAsymmetricMasterSecret(PassphraseCreateActivity.this, masterSecret);
 
       if (Build.VERSION.SDK_INT >= 22) {
-        List<SubscriptionInfoCompat> activeSubscriptions = new SubscriptionManagerCompat(PassphraseCreateActivity.this).getActiveSubscriptionInfoList();
+        List<SubscriptionInfoCompat> activeSubscriptions = SubscriptionManagerCompat.from(PassphraseCreateActivity.this).getActiveSubscriptionInfoList();
         DualSimUpgradeUtil.generateKeysIfDoNotExist(PassphraseCreateActivity.this, masterSecret, activeSubscriptions);
         DualSimUpgradeUtil.bindSubscriptionId(PassphraseCreateActivity.this, activeSubscriptions);
       } else {

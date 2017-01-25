@@ -33,7 +33,7 @@ public class CheckSimStateJob extends MasterSecretJob {
   @Override
   public void onRun(MasterSecret masterSecret) {
     Log.w(TAG, "onRun()");
-    List<SubscriptionInfoCompat> activeSubscriptions = new SubscriptionManagerCompat(context).getActiveSubscriptionInfoList();
+    List<SubscriptionInfoCompat> activeSubscriptions = SubscriptionManagerCompat.from(context).getActiveSubscriptionInfoList();
     DualSimUpgradeUtil.bindAppSubscriptionId(context, activeSubscriptions);
     DualSimUpgradeUtil.generateKeysIfDoNotExist(context, masterSecret, activeSubscriptions);
     DualSimUpgradeUtil.bindSubscriptionId(context, activeSubscriptions);

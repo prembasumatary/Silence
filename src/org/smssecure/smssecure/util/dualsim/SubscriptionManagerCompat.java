@@ -1,5 +1,6 @@
 package org.smssecure.smssecure.util.dualsim;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.support.annotation.NonNull;
@@ -7,6 +8,7 @@ import android.telephony.SmsManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 import org.smssecure.smssecure.util.ServiceUtil;
 
@@ -16,11 +18,25 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class SubscriptionManagerCompat {
+  private static final String TAG = SubscriptionManagerCompat.class.getSimpleName();
 
-  private final Context context;
+  private static SubscriptionManagerCompat instance;
 
-  public SubscriptionManagerCompat(Context context) {
+  private final Context                   context;
+  private       List<String>              displayNameList;
+
+  public static SubscriptionManagerCompat from(Context context) {
+    Log.w(TAG, "from()");
+
+    if (instance == null) {
+      instance = new SubscriptionManagerCompat(context);
+    }
+    return instance;
+  }
+
+  private SubscriptionManagerCompat(Context context) {
     this.context = context.getApplicationContext();
+    this.displayNameList = new LinkedList<String>();
   }
 
   public Optional<SubscriptionInfoCompat> getActiveSubscriptionInfo(int subscriptionId) {
@@ -35,10 +51,37 @@ public class SubscriptionManagerCompat {
                                                     subscriptionId,
                                                     subscriptionInfo.getDisplayName(),
                                                     subscriptionInfo.getNumber(),
-                                                    subscriptionInfo.getIccId()));
+                                                    subscriptionInfo.getIccId(),
+                                                    subscriptionInfo.getSimSlotIndex()+1,
+                                                    knowThisDisplayNameTwice(subscriptionInfo.getDisplayName())));
     } else {
       return Optional.absent();
     }
+  }
+
+  @TargetApi(22)
+  private void updateDisplayNameList(List<SubscriptionInfo> activeSubscriptions) {
+    displayNameList = new LinkedList<String>();
+
+    if (activeSubscriptions != null) {
+      for (SubscriptionInfo subscriptionInfo : activeSubscriptions) {
+        displayNameList.add(subscriptionInfo.getDisplayName().toString());
+      }
+    }
+  }
+
+  public boolean knowThisDisplayNameTwice(CharSequence displayName) {
+    if (displayName == null) return false;
+
+    boolean found = false;
+
+    for (String potentialDisplayName : displayNameList) {
+      if (found && potentialDisplayName != null && potentialDisplayName.equals(displayName.toString()))
+        return true;
+      if (potentialDisplayName != null && potentialDisplayName.equals(displayName.toString()))
+        found = true;
+    }
+    return false;
   }
 
   public @NonNull List<SubscriptionInfoCompat> getActiveSubscriptionInfoList() {
@@ -50,11 +93,14 @@ public class SubscriptionManagerCompat {
                                                 -1,
                                                 telephonyManager.getSimOperatorName(),
                                                 telephonyManager.getLine1Number(),
-                                                telephonyManager.getSimSerialNumber()));
+                                                telephonyManager.getSimSerialNumber(),
+                                                1,
+                                                false));
       return compatList;
     }
 
     List<SubscriptionInfo> subscriptionInfos = SubscriptionManager.from(context).getActiveSubscriptionInfoList();
+    updateDisplayNameList(subscriptionInfos);
 
     if (subscriptionInfos == null || subscriptionInfos.isEmpty()) {
       return compatList;
@@ -65,7 +111,9 @@ public class SubscriptionManagerCompat {
                                                 subscriptionInfo.getSubscriptionId(),
                                                 subscriptionInfo.getDisplayName(),
                                                 subscriptionInfo.getNumber(),
-                                                subscriptionInfo.getIccId()));
+                                                subscriptionInfo.getIccId(),
+                                                subscriptionInfo.getSimSlotIndex()+1,
+                                                knowThisDisplayNameTwice(subscriptionInfo.getDisplayName())));
     }
 
     return compatList;

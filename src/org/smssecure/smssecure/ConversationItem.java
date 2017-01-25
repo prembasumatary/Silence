@@ -330,7 +330,7 @@ public class ConversationItem extends LinearLayout
   }
 
   private void setSimInfo(MessageRecord messageRecord) {
-    SubscriptionManagerCompat subscriptionManager = new SubscriptionManagerCompat(context);
+    SubscriptionManagerCompat subscriptionManager = SubscriptionManagerCompat.from(context);
 
     if (messageRecord.getSubscriptionId() == -1 || subscriptionManager.getActiveSubscriptionInfoList().size() < 2) {
       simInfoText.setVisibility(View.GONE);

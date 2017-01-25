@@ -102,7 +102,7 @@ public class AvatarImageView extends ImageView {
     public BadgeResolutionTask(Context context, MasterSecret masterSecret) {
       this.context = context;
       this.masterSecret = masterSecret;
-      this.activeSubscriptions = new SubscriptionManagerCompat(context).getActiveSubscriptionInfoList();
+      this.activeSubscriptions = SubscriptionManagerCompat.from(context).getActiveSubscriptionInfoList();
     }
 
     @Override

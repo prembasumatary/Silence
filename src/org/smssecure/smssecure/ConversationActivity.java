@@ -203,7 +203,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
   protected void onCreate(Bundle state, @NonNull MasterSecret masterSecret) {
     Log.w(TAG, "onCreate()");
     this.masterSecret = masterSecret;
-    this.activeSubscriptions = new SubscriptionManagerCompat(this).getActiveSubscriptionInfoList();
+    this.activeSubscriptions = SubscriptionManagerCompat.from(this).getActiveSubscriptionInfoList();
 
     supportRequestWindowFeature(WindowCompat.FEATURE_ACTION_BAR_OVERLAY);
     setContentView(R.layout.conversation_activity);

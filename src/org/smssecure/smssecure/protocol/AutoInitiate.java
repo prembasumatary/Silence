@@ -90,7 +90,7 @@ public class AutoInitiate {
                                              MasterSecret masterSecret,
                                              Recipient recipient)
   {
-    return !SessionUtil.hasSession(context, masterSecret, recipient.getNumber(), new SubscriptionManagerCompat(context).getActiveSubscriptionInfoList());
+    return !SessionUtil.hasSession(context, masterSecret, recipient.getNumber(), SubscriptionManagerCompat.from(context).getActiveSubscriptionInfoList());
   }
 
 }
