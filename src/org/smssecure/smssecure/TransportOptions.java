@@ -111,6 +111,17 @@ public class TransportOptions {
     }
   }
 
+  public void disableTransport(Type type, int subscriptionId) {
+    List<TransportOption> options = find(type);
+
+    for (TransportOption option : options) {
+      if (option.getSimSubscriptionId().or(-1) == subscriptionId) enabledTransports.remove(option);
+      if (selectedOption.isPresent() && selectedOption.get().getType() == type && selectedOption.get().getSimSubscriptionId().or(-1) == subscriptionId) {
+        setSelectedTransport(null);
+      }
+    }
+  }
+
   public List<TransportOption> getEnabledTransports() {
     return enabledTransports;
   }

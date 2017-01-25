@@ -6,6 +6,9 @@ import android.support.annotation.NonNull;
 import android.telephony.SmsManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
+
+import org.smssecure.smssecure.util.ServiceUtil;
 
 import org.whispersystems.libaxolotl.util.guava.Optional;
 
@@ -21,35 +24,48 @@ public class SubscriptionManagerCompat {
   }
 
   public Optional<SubscriptionInfoCompat> getActiveSubscriptionInfo(int subscriptionId) {
-    if (Build.VERSION.SDK_INT < 22) {
+    if (getActiveSubscriptionInfoList().size() <= 0) {
       return Optional.absent();
     }
 
     SubscriptionInfo subscriptionInfo = SubscriptionManager.from(context).getActiveSubscriptionInfo(subscriptionId);
 
     if (subscriptionInfo != null) {
-      return Optional.of(new SubscriptionInfoCompat(subscriptionId, subscriptionInfo.getDisplayName()));
+      return Optional.of(new SubscriptionInfoCompat(context,
+                                                    subscriptionId,
+                                                    subscriptionInfo.getDisplayName(),
+                                                    subscriptionInfo.getNumber(),
+                                                    subscriptionInfo.getIccId()));
     } else {
       return Optional.absent();
     }
   }
 
   public @NonNull List<SubscriptionInfoCompat> getActiveSubscriptionInfoList() {
+    List<SubscriptionInfoCompat> compatList = new LinkedList<>();
+
     if (Build.VERSION.SDK_INT < 22) {
-      return new LinkedList<>();
+      TelephonyManager telephonyManager = ServiceUtil.getTelephonyManager(context);
+      compatList.add(new SubscriptionInfoCompat(context,
+                                                -1,
+                                                telephonyManager.getSimOperatorName(),
+                                                telephonyManager.getLine1Number(),
+                                                telephonyManager.getSimSerialNumber()));
+      return compatList;
     }
 
     List<SubscriptionInfo> subscriptionInfos = SubscriptionManager.from(context).getActiveSubscriptionInfoList();
 
     if (subscriptionInfos == null || subscriptionInfos.isEmpty()) {
-      return new LinkedList<>();
+      return compatList;
     }
 
-    List<SubscriptionInfoCompat> compatList = new LinkedList<>();
-
     for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
-      compatList.add(new SubscriptionInfoCompat(subscriptionInfo.getSubscriptionId(),
-                                                subscriptionInfo.getDisplayName()));
+      compatList.add(new SubscriptionInfoCompat(context,
+                                                subscriptionInfo.getSubscriptionId(),
+                                                subscriptionInfo.getDisplayName(),
+                                                subscriptionInfo.getNumber(),
+                                                subscriptionInfo.getIccId()));
     }
 
     return compatList;

@@ -1,10 +1,14 @@
 package org.smssecure.smssecure.jobs;
 
 import android.content.Context;
+import android.os.Build;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.util.Log;
 
 import org.smssecure.smssecure.crypto.AsymmetricMasterCipher;
 import org.smssecure.smssecure.crypto.AsymmetricMasterSecret;
+import org.smssecure.smssecure.crypto.KeyExchangeInitiator;
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.crypto.MasterSecretUtil;
 import org.smssecure.smssecure.crypto.SecurityEvent;
@@ -16,6 +20,8 @@ import org.smssecure.smssecure.database.NoSuchMessageException;
 import org.smssecure.smssecure.database.model.SmsMessageRecord;
 import org.smssecure.smssecure.jobs.requirements.MasterSecretRequirement;
 import org.smssecure.smssecure.notifications.MessageNotifier;
+import org.smssecure.smssecure.recipients.Recipients;
+import org.smssecure.smssecure.recipients.RecipientFactory;
 import org.smssecure.smssecure.service.KeyCachingService;
 import org.smssecure.smssecure.sms.IncomingEncryptedMessage;
 import org.smssecure.smssecure.sms.IncomingEndSessionMessage;
@@ -37,6 +43,7 @@ import org.whispersystems.libaxolotl.UntrustedIdentityException;
 import org.whispersystems.libaxolotl.util.guava.Optional;
 
 import java.io.IOException;
+import java.util.List;
 
 public class SmsDecryptJob extends MasterSecretJob {
 
@@ -124,7 +131,7 @@ public class SmsDecryptJob extends MasterSecretJob {
       InvalidMessageException, LegacyMessageException
   {
     EncryptingSmsDatabase database  = DatabaseFactory.getEncryptingSmsDatabase(context);
-    SmsCipher             cipher    = new SmsCipher(new SilenceAxolotlStore(context, masterSecret));
+    SmsCipher             cipher    = new SmsCipher(new SilenceAxolotlStore(context, masterSecret, message.getSubscriptionId()));
     IncomingTextMessage   plaintext = cipher.decrypt(context, message);
 
     database.updateMessageBody(masterSecret, messageId, plaintext.getMessageBody());
@@ -140,7 +147,7 @@ public class SmsDecryptJob extends MasterSecretJob {
     EncryptingSmsDatabase database = DatabaseFactory.getEncryptingSmsDatabase(context);
 
     try {
-      SmsCipher                smsCipher = new SmsCipher(new SilenceAxolotlStore(context, masterSecret));
+      SmsCipher                smsCipher = new SmsCipher(new SilenceAxolotlStore(context, masterSecret, message.getSubscriptionId()));
       IncomingEncryptedMessage plaintext = smsCipher.decrypt(context, message);
 
       database.updateBundleMessageBody(masterSecret, messageId, plaintext.getMessageBody());
@@ -160,16 +167,34 @@ public class SmsDecryptJob extends MasterSecretJob {
     EncryptingSmsDatabase database = DatabaseFactory.getEncryptingSmsDatabase(context);
 
     if (SilencePreferences.isAutoRespondKeyExchangeEnabled(context) || manualOverride) {
+
       try {
-        SmsCipher                  cipher   = new SmsCipher(new SilenceAxolotlStore(context, masterSecret));
-        OutgoingKeyExchangeMessage response = cipher.process(context, message);
+        if (Build.VERSION.SDK_INT >= 22) {
+          OutgoingKeyExchangeMessage response = buildResponsefromMessage(masterSecret, message);
 
-        database.markAsProcessedKeyExchange(messageId);
+          if (response != null) {
+            MessageSender.send(context, masterSecret, response, threadId, true);
 
-        SecurityEvent.broadcastSecurityUpdateEvent(context, threadId);
+            int subscriptionId = message.getSubscriptionId();
 
-        if (response != null) {
-          MessageSender.send(context, masterSecret, response, threadId, true);
+            List<SubscriptionInfo> listSubscriptionInfo = SubscriptionManager.from(context).getActiveSubscriptionInfoList();
+            for (SubscriptionInfo subscriptionInfo : listSubscriptionInfo) {
+              if (subscriptionInfo.getSubscriptionId() != subscriptionId) {
+                Recipients recipients = RecipientFactory.getRecipientsFromString(context, message.getSender(), false);
+                KeyExchangeInitiator.initiateKeyExchange(context, masterSecret, recipients, subscriptionInfo.getSubscriptionId());
+              }
+            }
+          }
+
+          database.markAsProcessedKeyExchange(messageId);
+          SecurityEvent.broadcastSecurityUpdateEvent(context, threadId);
+        } else {
+          OutgoingKeyExchangeMessage response = buildResponsefromMessage(masterSecret, message);
+
+          database.markAsProcessedKeyExchange(messageId);
+          SecurityEvent.broadcastSecurityUpdateEvent(context, threadId);
+
+          if (response != null) MessageSender.send(context, masterSecret, response, threadId, true);
         }
       } catch (InvalidVersionException e) {
         Log.w(TAG, e);
@@ -189,6 +214,13 @@ public class SmsDecryptJob extends MasterSecretJob {
     }
   }
 
+  private OutgoingKeyExchangeMessage buildResponsefromMessage(MasterSecret masterSecret, IncomingKeyExchangeMessage message)
+    throws UntrustedIdentityException, StaleKeyExchangeException, InvalidVersionException, LegacyMessageException, InvalidMessageException
+  {
+    SmsCipher cipher = new SmsCipher(new SilenceAxolotlStore(context, masterSecret, message.getSubscriptionId()));
+    return cipher.process(context, message, message.getSubscriptionId());
+  }
+
   private void handleXmppExchangeMessage(MasterSecret masterSecret, long messageId, long threadId,
                                          IncomingXmppExchangeMessage message)
      throws NoSessionException, DuplicateMessageException, InvalidMessageException, LegacyMessageException
@@ -197,7 +229,7 @@ public class SmsDecryptJob extends MasterSecretJob {
     database.markAsXmppExchange(messageId);
   }
 
-  private String getAsymmetricDecryptedBody(MasterSecret masterSecret, String body)
+  private String getAsymmetricDecryptedBody(MasterSecret masterSecret, String body, int subscriptionId)
       throws InvalidMessageException
   {
     try {
@@ -216,13 +248,14 @@ public class SmsDecryptJob extends MasterSecretJob {
     String plaintextBody = record.getBody().getBody();
 
     if (record.isAsymmetricEncryption()) {
-      plaintextBody = getAsymmetricDecryptedBody(masterSecret, record.getBody().getBody());
+      plaintextBody = getAsymmetricDecryptedBody(masterSecret, record.getBody().getBody(), record.getSubscriptionId());
     }
 
     IncomingTextMessage message = new IncomingTextMessage(record.getRecipients().getPrimaryRecipient().getNumber(),
                                                           record.getRecipientDeviceId(),
                                                           record.getDateSent(),
-                                                          plaintextBody);
+                                                          plaintextBody,
+                                                          record.getSubscriptionId());
 
     if (record.isEndSession()) {
       return new IncomingEndSessionMessage(message);

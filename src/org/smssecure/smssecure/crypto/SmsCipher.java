@@ -101,7 +101,7 @@ public class SmsCipher {
     }
   }
 
-  public OutgoingKeyExchangeMessage process(Context context, IncomingKeyExchangeMessage message)
+  public OutgoingKeyExchangeMessage process(Context context, IncomingKeyExchangeMessage message, int subscriptionId)
       throws UntrustedIdentityException, StaleKeyExchangeException,
              InvalidVersionException, LegacyMessageException, InvalidMessageException
   {
@@ -115,7 +115,7 @@ public class SmsCipher {
 
       if (response != null) {
         byte[] serializedResponse = transportDetails.getEncodedMessage(response.serialize());
-        return new OutgoingKeyExchangeMessage(recipients, new String(serializedResponse), message.getSubscriptionId());
+        return new OutgoingKeyExchangeMessage(recipients, new String(serializedResponse), subscriptionId);
       } else {
         return null;
       }
